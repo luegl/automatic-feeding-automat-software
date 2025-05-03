@@ -34,6 +34,10 @@ class Cat:
 def load_cats():
     with open("cats.json", "r") as f:
         return json.load(f)
+    
+def save_cats():
+    with open("cats.json", "w") as f:
+        json.dump(cats_json, f, indent=2)
 
 def weigh_bowl_A():
     a = 0
@@ -48,14 +52,14 @@ def open_bowl_A(cat):
 
 def close_bowl_A(weight, cat):
    cats_json[cat]['ration_left'] = cats_json.get(cat, {}).get("ration_left")-(fA.weight-weight)
+   save_cats()
    fA.state="closed"
    fA.cat=""
    fA.weight=weight
 
 def fill_up_bowl_A():
-    if fA.weight < 200 and fA.state=="closed":
-       weight_now = input("Wie schwer nach dem Auffüllen? ")
-       fA.weight = weight_now
+    if fA.weight < 200:
+       fA.weight = int(input("Wie schwer nach dem Auffüllen? "))
 
 def detect_cat_camera_A():
     bruno = False
@@ -145,9 +149,9 @@ def food_bowl_A():
             if (fA.weight - weight > cats_json.get(fA.cat, {}).get("ration_left")) or (wrong_detection_count >= 3):
                 close_bowl_A(weight, fA.cat)
                 print("geschlossen")
-                wrong_detection_count = 0 
-
-        fill_up_bowl_A()
+                wrong_detection_count = 0
+                fill_up_bowl_A()
+        
         print(fA.state)
 
 def __main__():

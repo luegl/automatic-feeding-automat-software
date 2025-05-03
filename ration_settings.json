@@ -1,0 +1,10 @@
+{
+  "bruno": {
+    "split_meals": false,
+    "carryover": false
+  },
+  "flaekli": {
+    "split_meals": false,
+    "carryover": false
+  }
+}

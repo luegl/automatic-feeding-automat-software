@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Katzen-Fütterung</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header>
+  <h1>🐾 Katzen-Futterautomat</h1>
+  <form action="/logout" method="get" class="logout">
+    <button type="submit" class="btn small">Logout</button>
+  </form>
+</header>
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flashes">
+        {% for cat,msg in messages %}
+          <li class="{{cat}}">{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <section class="cards">
+    <div class="card">
+      <h2>Aktuelle Katzen</h2>
+      {% for name,data in cats.items() %}
+      <div class="item">
+        <span>{{ name.capitalize() }}</span>
+        <span>{{ data.ration_total }} <small>g</small></span>
+        <form action="/delete_cat/{{name}}" method="post" class="inline">
+          <button type="submit" class="btn delete">✖️</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="card">
+      <h2>Neue Katze</h2>
+      <form action="/add_cat" method="post">
+        <input type="text" name="name" placeholder="Name (kleinbuchstaben)" required>
+        <input type="number" name="ration_total" placeholder="Ration pro Tag (g)" min="1" required>
+        <button type="submit" class="btn">➕ Hinzufügen</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Einstellungen</h2>
+      <form action="/update_settings" method="post">
+        <label><input type="checkbox" name="split_ration" id="split_ration"
+          {% if settings.get('split_ration') %}checked{% endif %}>
+          Aufteilen auf Morgen & Abend
+        </label>
+        <div id="times">
+          <input type="number" name="time_morning" placeholder="Start Morgen (0–23)"
+            min="0" max="23" value="{{settings.get('time_morning',8)}}">
+          <input type="number" name="time_evening" placeholder="Start Abend (0–23)"
+            min="0" max="23" value="{{settings.get('time_evening',20)}}">
+        </div>
+        <button type="submit" class="btn">💾 Speichern</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Programm starten</h2>
+      <form action="/start_main" method="post">
+        <button type="submit" class="btn start">▶️ main.py starten</button>
+      </form>
+    </div>
+  </section>
+</main>
+
+<script>
+  const cb = document.getElementById('split_ration'),
+        times = document.getElementById('times');
+  const toggle = () => times.style.display = cb.checked ? 'block':'none';
+  cb.addEventListener('change',toggle);
+  toggle();
+</script>
+
+</body>
+</html>
