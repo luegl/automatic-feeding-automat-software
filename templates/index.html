@@ -2,86 +2,90 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Katzen-Fütterung</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-
 <header>
-  <h1>🐾 Katzen-Futterautomat</h1>
-  <form action="/logout" method="get" class="logout">
-    <button type="submit" class="btn small">Logout</button>
-  </form>
+  <h1>🐾 Katzen-Fütterung</h1>
+  <a href="/logout"><button class="btn small">Logout</button></a>
 </header>
 
-<main>
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <ul class="flashes">
-        {% for cat,msg in messages %}
-          <li class="{{cat}}">{{ msg }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
+<section class="cats">
+  <h2>Aktuelle Katzen</h2>
+  {% for name, data in cats.items() %}
+    <div class="item">
+      <span>{{ name.capitalize() }}: {{ data.ration_total }} <small>g</small></span>
+      <a href="/delete_cat/{{ name }}"><button class="btn delete">Löschen</button></a>
+    </div>
+  {% endfor %}
+</section>
 
-  <section class="cards">
-    <div class="card">
-      <h2>Aktuelle Katzen</h2>
-      {% for name,data in cats.items() %}
-      <div class="item">
-        <span>{{ name.capitalize() }}</span>
-        <span>{{ data.ration_total }} <small>g</small></span>
-        <form action="/delete_cat/{{name}}" method="post" class="inline">
-          <button type="submit" class="btn delete">✖️</button>
-        </form>
-      </div>
+<form action="/add_cat" method="POST" enctype="multipart/form-data" class="section">
+  <h2>Neue Katze</h2>
+  <input type="text" name="name" placeholder="Name (klein)" required>
+  <input type="number" name="ration_total" placeholder="Ration pro Tag (g)" min="1" required>
+  <label>Modell (.keras)</label>
+  <input type="file" name="model" accept=".keras">
+  <label>Bilder (nur wenn kein Modell):</label>
+  <input type="file" name="images" multiple>
+  <button class="btn">➕ Hinzufügen</button>
+</form>
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <section class="section">
+      {% for message in messages %}
+        <div class="alert">{{ message }}</div>
       {% endfor %}
-    </div>
+    </section>
+  {% endif %}
+{% endwith %}
 
-    <div class="card">
-      <h2>Neue Katze</h2>
-      <form action="/add_cat" method="post">
-        <input type="text" name="name" placeholder="Name (kleinbuchstaben)" required>
-        <input type="number" name="ration_total" placeholder="Ration pro Tag (g)" min="1" required>
-        <button type="submit" class="btn">➕ Hinzufügen</button>
-      </form>
-    </div>
+<form action="/update_settings" method="POST" class="section">
+  <h2>Einstellungen</h2>
+  <label><input type="checkbox" id="split_ration" name="split_ration"
+    {% if settings.get('split_ration') %}checked{% endif %}>
+    Aufteilen auf Morgen & Abend
+  </label>
+  <div id="times" style="{% if not settings.get('split_ration') %}display:none;{% endif %}">
+    <input type="number" name="time_morning" min="0" max="23"
+      value="{{ settings.get('time_morning',8) }}" required placeholder="Morgen (0–23)">
+    <input type="number" name="time_evening" min="0" max="23"
+      value="{{ settings.get('time_evening',20) }}" required placeholder="Abend (0–23)">
+  </div>
+  <button class="btn">💾 Speichern</button>
+</form>
 
-    <div class="card">
-      <h2>Einstellungen</h2>
-      <form action="/update_settings" method="post">
-        <label><input type="checkbox" name="split_ration" id="split_ration"
-          {% if settings.get('split_ration') %}checked{% endif %}>
-          Aufteilen auf Morgen & Abend
-        </label>
-        <div id="times">
-          <input type="number" name="time_morning" placeholder="Start Morgen (0–23)"
-            min="0" max="23" value="{{settings.get('time_morning',8)}}">
-          <input type="number" name="time_evening" placeholder="Start Abend (0–23)"
-            min="0" max="23" value="{{settings.get('time_evening',20)}}">
-        </div>
-        <button type="submit" class="btn">💾 Speichern</button>
-      </form>
-    </div>
+<div class="starter">
+  <form action="/start_main" method="GET">
+    <button class="btn start">▶️ main.py starten</button>
+  </form>
+</div>
 
-    <div class="card">
-      <h2>Programm starten</h2>
-      <form action="/start_main" method="post">
-        <button type="submit" class="btn start">▶️ main.py starten</button>
-      </form>
-    </div>
-  </section>
-</main>
+<section class="section">
+  <h2>📸 Live Kamera (Schnappschuss alle 3 Sek.)</h2>
+  <img
+    id="snapshot"
+    src="{{ url_for('snapshot') }}"
+    style="max-width:100%; border:2px solid #ccc; border-radius:10px;"
+    alt="Kamera-Snapshot">
+</section>
 
 <script>
-  const cb = document.getElementById('split_ration'),
-        times = document.getElementById('times');
-  const toggle = () => times.style.display = cb.checked ? 'block':'none';
-  cb.addEventListener('change',toggle);
-  toggle();
-</script>
+    const cb = document.getElementById('split_ration'),
+          times = document.getElementById('times');
+    const toggle = () => times.style.display = cb.checked ? 'block' : 'none';
+    cb.addEventListener('change', toggle);
+    toggle();
+  
+    // Snapshot alle 3 Sekunden neu laden
+    const img = document.getElementById('snapshot');
+    setInterval(() => {
+      img.src = "{{ url_for('snapshot') }}?t=" + Date.now();
+    }, 3000);
+  </script>
 
 </body>
 </html>

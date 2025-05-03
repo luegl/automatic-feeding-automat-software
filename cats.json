@@ -5,6 +5,10 @@
   },
   "bruno": {
     "ration_total": 180,
-    "ration_left": 180
+    "ration_left": -50
+  },
+  "pe": {
+    "ration_total": 18,
+    "ration_left": 18
   }
 }

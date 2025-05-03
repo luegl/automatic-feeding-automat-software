@@ -2,25 +2,19 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
+  <title>Login – Katzen-Fütterung</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Login – Katzen-Futterautomat</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
   <div class="login">
-    <form action="/login" method="POST">
+    <form method="POST">
       <h2>Admin Login</h2>
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <ul class="flashes">
-            {% for cat,msg in messages %}
-              <li class="{{cat}}">{{ msg }}</li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-      {% endwith %}
-      <input type="password" name="password" placeholder="Admin-PW" required>
-      <button type="submit" class="btn">Login</button>
+      <input type="password" name="password" placeholder="Passwort" required>
+      <button type="submit">Einloggen</button>
+      {% if error %}
+        <p class="error">Falsches Passwort!</p>
+      {% endif %}
     </form>
   </div>
 </body>
