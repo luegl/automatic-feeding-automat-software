@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Take Pictures</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>📸 Take Pictures</h1>
+  <a href="{{ url_for('index') }}"><button class="btn small">Back</button></a>
+</header>
+
+<main style="max-width:600px;margin:2vw auto;">
+  <form action="/start_take_pictures" method="POST" class="section">
+    <input type="text" name="cat_name" placeholder="Name (lowercase)" required pattern="[a-z]+">
+    <button class="btn start">▶️ Start</button>
+  </form>
+  <form action="/stop_take_pictures" method="POST" class="section">
+    <input type="hidden" name="cat_name" value="{{ cat_name }}">
+    <button class="btn delete">⏹️ Stop</button>
+  </form>
+  {% if cat_name %}
+    <section class="section">
+      <p>📸 Currently in folder <strong>{{ cat_name }}</strong>: <span id="image-count">{{ image_count or 0 }}</span> images</p>
+    </section>
+  {% endif %}
+  <section class="section">
+    <div class="alert">
+      🚨 <strong>If more than 500 pictures are taken, the program will stop automatically because that's enough images.</strong>
+    </div>
+  </section>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <section class="section">
+        {% for message in messages %}
+          <div class="alert">{{ message }}</div>
+        {% endfor %}
+      </section>
+    {% endif %}
+  {% endwith %}
+</main>
+<script>
+  function updateImageCount() {
+    var catName = "{{ cat_name }}";
+    if (catName) {
+      $.getJSON("/get_image_count/" + catName, function(data) {
+        $('#image-count').text(data.image_count);
+      });
+    }
+  }
+  setInterval(updateImageCount, 2000);
+</script>
+</body>
+</html>

@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Login – Katzen-Fütterung</title>
+  <title>Login – Cat Feeding</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div class="login">
-    <form method="POST">
-      <h2>Admin Login</h2>
-      <input type="password" name="password" placeholder="Passwort" required>
-      <button type="submit">Einloggen</button>
-      {% if error %}
-        <p class="error">Falsches Passwort!</p>
-      {% endif %}
-    </form>
+  <div class="login-wrapper">
+    <div class="login-panel">
+      <form method="POST">
+        <h2>Admin Login</h2>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit" class="btn">Login</button>
+        {% if error %}
+          <p class="error">Wrong password!</p>
+        {% endif %}
+      </form>
+    </div>
   </div>
 </body>
 </html>

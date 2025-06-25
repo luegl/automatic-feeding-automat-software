@@ -25,14 +25,8 @@ class Food_bowl:
     self.weight = weight
     self.cat = cat
 
-
-class Cat:
-  def __init__(self, name, ratio_per_day):
-    self.name = name
-    self.ratio_per_day = ratio_per_day
-
-def load_cats():
-    with open("cats.json", "r") as f:
+def load_cats(file):
+    with open(file, "r") as f:
         return json.load(f)
     
 def save_cats():
@@ -62,9 +56,6 @@ def fill_up_bowl_A():
        fA.weight = int(input("Wie schwer nach dem Auffüllen? "))
 
 def detect_cat_camera_A():
-    bruno = False
-    flaekli = False
-    
     img_array = picam2.capture_array()
     img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
     
@@ -89,30 +80,20 @@ def detect_cat_camera_A():
             img_array_resized = keras.utils.img_to_array(cropped_img_resized)
             img_array_resized = img_array_resized / 255.0  
             img_array_resized = np.expand_dims(img_array_resized, axis=0)  
-            predictions_bruno = keras_model_bruno.predict(img_array_resized)
-            score_bruno = float(predictions_bruno[0])
-            predictions_flaekli = keras_model_flaekli.predict(img_array_resized)
-            score_flaekli = float(predictions_flaekli[0])
+
+            scores = []
+            for cat in cats_names:
+                prediction = models_dict[cat].predict(img_array_resized)
+                score = float(prediction[0])
+                if 100 * (1 - score) > 25:
+                    scores.append((cat, score))  
+
+            if scores == []:
+                cat_detected = ""
+            else:
+                cat_detected = max(scores, key=lambda x: x[1])[0]  
         
-            if 100 * (1 - score_bruno) > 25:
-                bruno = True
-                print("bruno")
 
-            if 100 * (1 - score_flaekli) > 25:
-                flaekli = True
-                print("flaekli")
-                
-            if bruno and not flaekli:
-                cat_detected = "bruno"
-
-            if flaekli and not bruno:
-                cat_detected = "flaekli"
-
-            if bruno and flaekli:
-                if 100 * (1 - score_bruno) > 100 * (1 - score_flaekli):
-                   cat_detected = "bruno"
-                else:
-                    cat_detected = "flaekli"
 
     else:
         cat_detected=""
@@ -131,6 +112,12 @@ def food_bowl_A():
     wrong_detection_count = 0 
 
     while True:
+        current_modified = os.path.getmtime("cats.json")
+        if current_modified != last_modified:
+            last_modified = current_modified
+            cats_json = load_cats("cats.json")
+            cats_names = list(cats_json.keys())
+
         cat = detect_cat_camera_A_fake()
         weight = weigh_bowl_A_fake()
 
@@ -146,7 +133,7 @@ def food_bowl_A():
                 wrong_detection_count = 0 
 
            
-            if (fA.weight - weight > cats_json.get(fA.cat, {}).get("ration_left")) or (wrong_detection_count >= 3):
+            if (fA.weight - weight > cats_json.get(fA.cat, {}).get("ration_left")) or (wrong_detection_count >= 5):
                 close_bowl_A(weight, fA.cat)
                 print("geschlossen")
                 wrong_detection_count = 0
@@ -156,10 +143,21 @@ def food_bowl_A():
 
 def __main__():
    food_bowl_A()
-   
-"""      
-keras_model_bruno = tf.keras.models.load_model("models/model4_bruno.keras")
-keras_model_flaekli = tf.keras.models.load_model("models/model1_flaekli.keras")
+
+"""
+models_dir = 'models'
+models_dict = {}
+
+
+for filename in os.listdir(models_dir):
+    if filename.endswith('.keras'):
+        cat_name = filename.replace('model_', '').replace('.keras', '')
+        models_dict[cat_name] = tf.keras.models.load_model(os.path.join(models_dir, filename))
+
+
+bruno_model = models_dict['bruno']
+
+
 model = YOLO("yolov8n.pt")
 
 cat_detected = ""
@@ -167,15 +165,14 @@ IMG_SIZE = (180, 180)
 picam2 = Picamera2()
 picam2.start()
 print("gestartet")
-"""
 
+"""
 
 fA = Food_bowl("A", "closed", 200, "")
 
-bruno = Cat("Bruno", 200)
-flaekli = Cat("Flaekli", 200)
+last_modified = os.path.getmtime("cats.json")
 
-cats_json = load_cats()
+cats_json = load_cats("cats.json")
 
 cats_names = list(cats_json.keys())
 

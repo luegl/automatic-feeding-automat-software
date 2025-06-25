@@ -1,91 +1,116 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Katzen-Fütterung</title>
+  <title>Cat Feeding</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <header>
-  <h1>🐾 Katzen-Fütterung</h1>
+  <h1>🐾 Cat Feeding</h1>
   <a href="/logout"><button class="btn small">Logout</button></a>
 </header>
 
-<section class="cats">
-  <h2>Aktuelle Katzen</h2>
-  {% for name, data in cats.items() %}
-    <div class="item">
-      <span>{{ name.capitalize() }}: {{ data.ration_total }} <small>g</small></span>
-      <a href="/delete_cat/{{ name }}"><button class="btn delete">Löschen</button></a>
-    </div>
-  {% endfor %}
-</section>
-
-<form action="/add_cat" method="POST" enctype="multipart/form-data" class="section">
-  <h2>Neue Katze</h2>
-  <input type="text" name="name" placeholder="Name (klein)" required>
-  <input type="number" name="ration_total" placeholder="Ration pro Tag (g)" min="1" required>
-  <label>Modell (.keras)</label>
-  <input type="file" name="model" accept=".keras">
-  <label>Bilder (nur wenn kein Modell):</label>
-  <input type="file" name="images" multiple>
-  <button class="btn">➕ Hinzufügen</button>
-</form>
-
-{% with messages = get_flashed_messages() %}
-  {% if messages %}
-    <section class="section">
-      {% for message in messages %}
-        <div class="alert">{{ message }}</div>
+<main>
+  <!-- Left Column: Cats & Camera -->
+  <section class="panel">
+    <h2>Current Cats</h2>
+    <div class="cats-list">
+      {% for name, data in cats.items() %}
+        <div class="cat-item">
+          <span>{{ name.capitalize() }}: {{ data.ration_total }} <small>g</small></span>
+          <span>Accuracy: {{ data.accuracy }}%</span>
+          <a href="/delete_cat/{{ name }}"><button class="btn delete">Delete</button></a>
+        </div>
       {% endfor %}
+    </div>
+    <section class="section">
+      <h2>📸 Live Camera (Snapshot every 3 sec.)</h2>
+      <img
+        id="snapshot"
+        src="{{ url_for('snapshot') }}"
+        alt="Camera Snapshot">
     </section>
-  {% endif %}
-{% endwith %}
+  </section>
 
-<form action="/update_settings" method="POST" class="section">
-  <h2>Einstellungen</h2>
-  <label><input type="checkbox" id="split_ration" name="split_ration"
-    {% if settings.get('split_ration') %}checked{% endif %}>
-    Aufteilen auf Morgen & Abend
-  </label>
-  <div id="times" style="{% if not settings.get('split_ration') %}display:none;{% endif %}">
-    <input type="number" name="time_morning" min="0" max="23"
-      value="{{ settings.get('time_morning',8) }}" required placeholder="Morgen (0–23)">
-    <input type="number" name="time_evening" min="0" max="23"
-      value="{{ settings.get('time_evening',20) }}" required placeholder="Abend (0–23)">
-  </div>
-  <button class="btn">💾 Speichern</button>
-</form>
+  <!-- Right Column: Add Cat, Settings, Actions -->
+  <section class="panel">
+    <form action="/add_cat" method="POST" enctype="multipart/form-data" class="section">
+      <h2>Add New Cat</h2>
+      <input type="text" name="name" placeholder="Name (lowercase)" required>
+      <input type="number" name="ration_total" placeholder="Ration per day (g)" min="1" required>
+      
+      <p><strong>Choose one of these options:</strong></p>
+      
+      <label>Model (.keras)</label>
+      <input type="file" name="model" accept=".keras">
+      
+      <label>Images of cat(at least 300 images):</label>
+      <input type="file" name="images" multiple>
+      
+      <label class="flex-row">
+        <input type="checkbox" name="use_existing_images" id="use_existing_images">
+        Use images already on Raspberry Pi
+      </label>
+      
+      <button class="btn">➕ Add</button>
+    </form>
+    
 
-<div class="starter">
-  <form action="/start_main" method="GET">
-    <button class="btn start">▶️ main.py starten</button>
-  </form>
-</div>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <section class="section">
+          {% for message in messages %}
+            <div class="alert">{{ message }}</div>
+          {% endfor %}
+        </section>
+      {% endif %}
+    {% endwith %}
 
-<section class="section">
-  <h2>📸 Live Kamera (Schnappschuss alle 3 Sek.)</h2>
-  <img
-    id="snapshot"
-    src="{{ url_for('snapshot') }}"
-    style="max-width:100%; border:2px solid #ccc; border-radius:10px;"
-    alt="Kamera-Snapshot">
-</section>
+    <form action="/update_settings" method="POST" class="section">
+      <h2>Settings</h2>
+      <label class="flex-row">
+        <input type="checkbox" id="split_ration" name="split_ration"
+          {% if settings.get('split_ration') %}checked{% endif %}>
+        Split into Morning & Evening
+      </label>
+      <div id="times" style="{% if not settings.get('split_ration') %}display:none;{% endif %}">
+        <input type="number" name="time_morning" min="0" max="23"
+          value="{{ settings.get('time_morning',8) }}" required placeholder="Morning (0–23)">
+        <input type="number" name="time_evening" min="0" max="23"
+          value="{{ settings.get('time_evening',20) }}" required placeholder="Evening (0–23)">
+      </div>
+      <button class="btn">💾 Save</button>
+    </form>
+
+    <div class="flex-row" style="margin-top:1.5em;">
+      <form action="/start_main" method="GET">
+        <button class="btn start">▶️ Start main.py</button>
+      </form>
+      <form action="/take_pictures_page" method="GET">
+        <button class="btn">📸 Take Pictures</button>
+      </form>
+    </div>
+  </section>
+</main>
 
 <script>
-    const cb = document.getElementById('split_ration'),
-          times = document.getElementById('times');
+  // Settings toggle
+  const cb = document.getElementById('split_ration'),
+        times = document.getElementById('times');
+  if (cb && times) {
     const toggle = () => times.style.display = cb.checked ? 'block' : 'none';
     cb.addEventListener('change', toggle);
     toggle();
-  
-    // Snapshot alle 3 Sekunden neu laden
-    const img = document.getElementById('snapshot');
+  }
+  // Live camera refresh
+  const img = document.getElementById('snapshot');
+  if (img) {
     setInterval(() => {
       img.src = "{{ url_for('snapshot') }}?t=" + Date.now();
     }, 3000);
-  </script>
-
+  }
+</script>
 </body>
 </html>
