@@ -1,5 +1,4 @@
 import json
-import threading
 import time
 from picamera2 import Picamera2
 import os
@@ -13,9 +12,78 @@ from PIL import Image
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
-from ultralytics import YOLO
+import RPi.GPIO as GPIO
+from time import sleep
+import gpiozero
+
+import collections
+import datetime
 
 
+import time
+
+import sys
+
+from JoyIT_hx711py import HX711
+if sys.version_info[0] != 3:
+
+    raise Exception("Python 3 is required.")
+hx = HX711(5, 6)
+hx.set_offset(8018181.6875)
+
+hx.set_scale(-916.85)
+
+
+# GPIO Pins (BCM-Nummerierung)
+DIR = 10  # Richtung
+PUL = 8
+ENA = 32     # Gegen den Uhrzeigersinn
+
+
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(DIR, GPIO.OUT)
+GPIO.setup(PUL, GPIO.OUT)
+
+import collections
+import datetime
+
+FPS = 2  # anpassen an deine Kamera
+PRE_BUFFER_SEC = 5
+class VideoRecorder:
+    def __init__(self, fps=FPS, pre_buffer_sec=PRE_BUFFER_SEC, out_dir="videos"):
+        self.buffer = collections.deque(maxlen=fps*pre_buffer_sec)
+        self.is_recording = False
+        self.out = None
+        self.fps = fps
+        self.out_dir = out_dir
+        os.makedirs(out_dir, exist_ok=True)
+
+    def add_frame(self, frame):
+        self.buffer.append(frame)
+        if self.is_recording and self.out is not None:
+            self.out.write(frame)
+
+    def start(self, cat_name="unknown"):   # <--- Katzennamen als optionales Argument
+        if not self.is_recording:
+            filename = f"{cat_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
+            path = os.path.join(self.out_dir, filename)
+
+            h, w, _ = self.buffer[0].shape
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            self.out = cv2.VideoWriter(path, fourcc, self.fps, (w, h))
+
+            for f in self.buffer:  # Prebuffer reinschreiben
+                self.out.write(f)
+
+            self.is_recording = True
+            print(f"▶️ Aufnahme gestartet: {path}")
+
+    def stop(self):
+        if self.is_recording:
+            self.out.release()
+            self.out = None
+            self.is_recording = False
+            print("⏹ Aufnahme gestoppt")
 
 
 class Food_bowl:
@@ -34,26 +102,75 @@ def save_cats():
         json.dump(cats_json, f, indent=2)
 
 def weigh_bowl_A():
-    a = 0
-    weights = [200, 180, 160, 140, 120, 100, 80,60, 40, 20, 10, 0]
-    weight_bowl_A = weights[a%12]
-    a += 1
-    return weight_bowl_A
+    hx.power_up()
+    val = hx.get_grams()
+
+
+
+
+
+    hx.power_down()
+
+
+
+        
+
+
+    return val
+
+
 
 def open_bowl_A(cat):
-   fA.state="open"
-   fA.cat=cat
+    delay = 0.001
+    GPIO.output(DIR, True)
+
+    for _ in range(900):
+        GPIO.output(PUL, True)
+        time.sleep(delay)
+        GPIO.output(PUL, False)
+        time.sleep(delay)
+    fA.state="open"
+    fA.cat=cat
 
 def close_bowl_A(weight, cat):
-   cats_json[cat]['ration_left'] = cats_json.get(cat, {}).get("ration_left")-(fA.weight-weight)
-   save_cats()
-   fA.state="closed"
-   fA.cat=""
-   fA.weight=weight
+    delay = 0.001
+    GPIO.output(DIR, False)
+    for _ in range(900):
+        GPIO.output(PUL, True)
+        time.sleep(delay)
+        GPIO.output(PUL, False)
+        time.sleep(delay)
+
+    cats_json[cat]['ration_left'] = cats_json.get(cat, {}).get("ration_left")-(fA.weight-weight)
+    save_cats()
+    fA.state="closed"
+    fA.cat=""
+    fA.weight=weight
+
 
 def fill_up_bowl_A():
-    if fA.weight < 200:
-       fA.weight = int(input("Wie schwer nach dem Auffüllen? "))
+ 
+    delay = 0.001
+    if fA.weight < min_weight:
+        GPIO.output(DIR, False)
+        
+       
+        for _ in range(287):
+            GPIO.output(PUL, True)
+            time.sleep(delay)
+            GPIO.output(PUL, False)
+            time.sleep(delay)
+      
+        while int(weigh_bowl_A())<min_weight:
+            print("warten")
+        GPIO.output(DIR, True)
+        for _ in range(287):
+            GPIO.output(PUL, True)
+            time.sleep(delay)
+            GPIO.output(PUL, False)
+            time.sleep(delay)
+        fA.weight = int((weigh_bowl_A()))
+     
 
 def detect_cat_camera_A():
     img_array = picam2.capture_array()
@@ -108,24 +225,55 @@ def weigh_bowl_A_fake():
     a=input("wie viel: ")
     return int(a)
 
+recorder = VideoRecorder()
+NO_CAT_TIMEOUT = 5  # Sekunden bis Aufnahme stoppt, wenn keine Katze mehr da ist
+last_cat_seen = time.time()
+target_delay = 1.0 / FPS
 def food_bowl_A():
+
+
     wrong_detection_count = 0 
+    global last_modified
+    global cats_json
+    global cats_names
+    global min_weight 
+    min_weight = 30
+    last_cat_seen = time.time()
 
     while True:
+        start = time.time()
+        img_array = picam2.capture_array()
+        img_array = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+        recorder.add_frame(img_array)
+             
         current_modified = os.path.getmtime("cats.json")
         if current_modified != last_modified:
             last_modified = current_modified
             cats_json = load_cats("cats.json")
             cats_names = list(cats_json.keys())
 
-        cat = detect_cat_camera_A_fake()
-        weight = weigh_bowl_A_fake()
+        cat = detect_cat_camera_A()
+        weight = weigh_bowl_A()
+        print(cat)
+        print(weight)
+        if cat in cats_names:
+            if not recorder.is_recording:
+                recorder.start(cat)   # Name der erkannten Katze in den Dateinamen
+            last_cat_seen = time.time()
+        else:
+            if recorder.is_recording and (time.time() - last_cat_seen > NO_CAT_TIMEOUT):
+                recorder.stop()
+
 
         if cat in cats_names and fA.state == "closed" and int(cats_json.get(cat, {}).get("ration_left")) > 0:
             open_bowl_A(cat)
             print("geöffnet für", cat)
+        
+        if fA.state == "closed" and weight <min_weight:
+            fill_up_bowl_A()
 
         if fA.state == "open":
+
             if cat != fA.cat:
                 wrong_detection_count += 1
                 print(f"Andere oder keine Katze erkannt. Zähler: {wrong_detection_count}")
@@ -137,14 +285,18 @@ def food_bowl_A():
                 close_bowl_A(weight, fA.cat)
                 print("geschlossen")
                 wrong_detection_count = 0
-                fill_up_bowl_A()
+                if weight < min_weight:
+                    fill_up_bowl_A()
         
         print(fA.state)
+        elapsed = time.time() - start
+        if elapsed < target_delay:
+            time.sleep(target_delay - elapsed)
 
 def __main__():
    food_bowl_A()
 
-"""
+
 models_dir = 'models'
 models_dict = {}
 
@@ -166,18 +318,22 @@ picam2 = Picamera2()
 picam2.start()
 print("gestartet")
 
-"""
 
-fA = Food_bowl("A", "closed", 200, "")
+
+fA = Food_bowl("A", "closed", weigh_bowl_A(), "")
 
 last_modified = os.path.getmtime("cats.json")
 
 cats_json = load_cats("cats.json")
 
 cats_names = list(cats_json.keys())
+try:
+    __main__()
 
 
-__main__()
+finally:
+    GPIO.cleanup()
+    
 
 
 
