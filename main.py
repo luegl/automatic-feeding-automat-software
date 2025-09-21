@@ -181,7 +181,7 @@ def detect_cat_camera_A():
     except:
         print("Fehler bei erkennung")
     
-    if results and results[0].boxes is not None and len(results[0].boxes) > 0:
+    if results and results[0].boxes is not None and 2 > len(results[0].boxes) > 0:
         boxes = results[0].boxes.xyxy.tolist()
         for box in boxes:
             x_min, y_min, x_max, y_max = map(int, box)
